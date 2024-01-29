@@ -1,0 +1,14 @@
+version: "3"
+services:
+  talker:
+    image: wawa9000/sadtalker
+    container_name: sadtalker
+    volumes:
+      - ./data:/data
+    # runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
