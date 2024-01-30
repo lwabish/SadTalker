@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, abort
+from flask import Flask, request, jsonify, abort, Blueprint
 import os
 import subprocess
 import threading
@@ -13,10 +13,18 @@ from Crypto.Cipher import PKCS1_v1_5
 from base64 import b64decode
 import time
 
+
+class Config:
+    tokenValidPeriod = os.environ.get("TOKEN_VALID_MINUTE", "1")
+    pythonPath = os.environ.get("PYTHON_PATH", "python")
+
+
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads/'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav'}
+app.config.from_object(Config())
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+root = Blueprint('sadTalker', __name__, url_prefix="/sadTalker")
 
 # 创建一个队列
 task_queue = Queue()
@@ -74,7 +82,8 @@ def authenticate(f):
     return decorated_function
 
 
-@app.route('/upload', methods=['POST'])
+@root.route('/upload', methods=['POST'])
+@authenticate
 def upload_file():
     if 'photo' not in request.files or 'audio' not in request.files:
         return jsonify(error="No photo/audio part in the request"), 400
@@ -97,7 +106,8 @@ def upload_file():
         return jsonify(error="File type not allowed"), 400
 
 
-@app.route('/status/<task_id>', methods=['GET'])
+@root.route('/status/<task_id>', methods=['GET'])
+@authenticate
 def get_status(task_id):
     c.execute('SELECT result, status FROM tasks WHERE id=?', (task_id,))
     task = c.fetchone()
@@ -129,7 +139,6 @@ def worker():
         try:
             # 调用subprocess（假设的命令和参数）
             process = subprocess.run([
-                # todo: python path
                 '/root/miniconda3/envs/sadtalker/bin/python', 'inference.py',
                 '--driven_audio',
                 audio_filename,
