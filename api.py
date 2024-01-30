@@ -23,11 +23,12 @@ class Config:
 
 
 config = Config()
-app = Flask(__name__)
+
 UPLOAD_FOLDER = 'uploads/'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 root = Blueprint('sadTalker', __name__, url_prefix="/sadTalker")
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # 创建一个队列
 task_queue = Queue()
@@ -171,6 +172,8 @@ def worker():
         finally:
             task_queue.task_done()
 
+
+app.register_blueprint(root)
 
 if __name__ == '__main__':
     if not os.path.exists(UPLOAD_FOLDER):
