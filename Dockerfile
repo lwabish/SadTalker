@@ -18,14 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     ffmpeg
 
-# Set the working directory
-WORKDIR /app
-
-# Clone the SadTalker repository
-RUN git clone https://github.com/lwabish/SadTalker.git
-
 # Change the working directory to SadTalker
 WORKDIR /app/SadTalker
+
+COPY . .
 
 # Install PyTorch with CUDA 11.3 support
 RUN pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
@@ -38,5 +34,7 @@ RUN chmod +x scripts/download_models.sh && scripts/download_models.sh
 
 ## Install extra packages
 #RUN pip install dlib-bin git+https://github.com/TencentARC/GFPGAN
+
+EXPOSE 5000
 
 ENTRYPOINT ["python", "api.py"]
