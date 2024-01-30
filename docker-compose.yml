@@ -1,11 +1,12 @@
 version: "3"
 services:
   talker:
-    image: wawa9000/sadtalker
-    container_name: sadtalker
+    image: sadtalker
+    container_name: sadTalker
     volumes:
-      - ./data:/data
-    # runtime: nvidia
+      - ./results:/app/SadTalker/results
+    ports:
+      - "80:5000"
     deploy:
       resources:
         reservations:

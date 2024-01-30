@@ -4,8 +4,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
-    wget \
-    git \
     build-essential \
     libgl1 \
     libssl-dev \
@@ -15,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     libjpeg-dev \
     libpng-dev \
-    unzip \
-    ffmpeg
+    ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
 
 # Change the working directory to SadTalker
 WORKDIR /app/SadTalker
@@ -30,7 +28,7 @@ RUN pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1
 RUN pip install -r requirements.txt
 
 # Download models using the provided script
-RUN chmod +x scripts/download_models.sh && scripts/download_models.sh
+#RUN chmod +x scripts/download_models.sh && scripts/download_models.sh
 
 ## Install extra packages
 #RUN pip install dlib-bin git+https://github.com/TencentARC/GFPGAN
