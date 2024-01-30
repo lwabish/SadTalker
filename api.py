@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, abort, Blueprint
+from flask import Flask, request, jsonify, abort, Blueprint, send_from_directory
 import os
 import subprocess
 import threading
@@ -15,20 +15,21 @@ import time
 
 
 class Config:
-    _tokenValidPeriod = os.environ.get("TOKEN_VALID_MINUTE", "10")
+    _tokenValidPeriod = os.environ.get("TOKEN_VALID_MINUTE", "1")
 
+    tokenExpire = os.environ.get("TOKEN_EXPIRE", "")
     tokenThreshold = int(float(_tokenValidPeriod) * 60)
     pythonPath = os.environ.get("PYTHON_PATH", "/root/miniconda3/envs/sadtalker/bin/python")
     logLevel = os.environ.get("LOG_LEVEL", "DEBUG")
+    uploadDir = os.environ.get("UPLOAD_DIR", 'uploads/')
+    resultDir = os.environ.get("RESULT_DIR", 'results/')
 
 
 config = Config()
 
-UPLOAD_FOLDER = 'uploads/'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav'}
 root = Blueprint('sadTalker', __name__, url_prefix="/sadTalker")
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # 创建一个队列
 task_queue = Queue()
@@ -75,7 +76,7 @@ def authenticate(f):
             if not decrypted_ticket.startswith(openid):
                 return jsonify(error="Invalid authentication"), 401
             ticket_timestamp = int(decrypted_ticket.lstrip(openid))
-            if time.time() - ticket_timestamp > config.tokenThreshold:
+            if config.tokenExpire and (time.time() - ticket_timestamp > config.tokenThreshold):
                 logger.debug(f"Authentication expired for openid: {openid}")
                 return jsonify(error="Authentication expired"), 401
 
@@ -99,8 +100,8 @@ def upload_file():
         return jsonify(error="No selected file"), 400
     if photo and allowed_file(photo.filename) and audio and allowed_file(audio.filename):
         task_id = str(uuid.uuid4())  # 生成唯一ID
-        photo_filename = os.path.join(app.config['UPLOAD_FOLDER'], photo.filename)
-        audio_filename = os.path.join(app.config['UPLOAD_FOLDER'], audio.filename)
+        photo_filename = os.path.join(config.uploadDir, photo.filename)
+        audio_filename = os.path.join(config.uploadDir, audio.filename)
         photo.save(photo_filename)
         audio.save(audio_filename)
         # 将任务添加到队列
@@ -120,6 +121,21 @@ def get_status(task_id):
     if task:
         return jsonify(id=task_id, result=task[0], status=task[1])
     else:
+        abort(404)
+
+
+@root.route('/download', methods=['GET'])
+@authenticate
+def download_result():
+    """
+    下载结果文件。
+    """
+    filename = request.args.get('filename')
+    if not filename:
+        return jsonify(error="Filename not provided"), 400
+    try:
+        return send_from_directory(config.resultDir, filename, as_attachment=True)
+    except FileNotFoundError:
         abort(404)
 
 
@@ -178,8 +194,8 @@ def worker():
 app.register_blueprint(root)
 
 if __name__ == '__main__':
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
+    if not os.path.exists(config.uploadDir):
+        os.makedirs(config.uploadDir)
 
     # 启动工作线程
     threading.Thread(target=worker, daemon=True).start()
