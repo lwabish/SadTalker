@@ -197,7 +197,7 @@ def start():
     from app_sadtalker import sadtalker_demo
     demo = sadtalker_demo()
     demo.queue()
-    demo.launch()
+    demo.launch(server_name='0.0.0.0')
 
 if __name__ == "__main__":
     prepare_environment()
