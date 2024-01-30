@@ -15,14 +15,17 @@ import time
 
 
 class Config:
-    tokenValidPeriod = os.environ.get("TOKEN_VALID_MINUTE", "1")
-    pythonPath = os.environ.get("PYTHON_PATH", "python")
+    _tokenValidPeriod = os.environ.get("TOKEN_VALID_MINUTE", "10")
+
+    tokenThreshold = int(float(_tokenValidPeriod) * 60)
+    pythonPath = os.environ.get("PYTHON_PATH", "/root/miniconda3/envs/sadtalker/bin/python")
+    logLevel = os.environ.get("LOG_LEVEL", "DEBUG")
 
 
+config = Config()
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads/'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav'}
-app.config.from_object(Config())
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 root = Blueprint('sadTalker', __name__, url_prefix="/sadTalker")
 
@@ -36,7 +39,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS tasks
 conn.commit()
 
 # 配置日志
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(message)s')
+logging.basicConfig(level=config.logLevel, format='%(asctime)s %(levelname)s:%(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +50,7 @@ def allowed_file(filename):
 def authenticate(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # 从请求中获取openid和ticket
+        # todo: 从请求中获取openid和ticket
         openid = request.headers.get('X-OpenID')
         ticket = request.headers.get('X-Ticket')
 
@@ -70,7 +73,7 @@ def authenticate(f):
             if not decrypted_ticket.startswith(openid):
                 return jsonify(error="Invalid authentication"), 401
             ticket_timestamp = int(decrypted_ticket.lstrip(openid))
-            if time.time() - ticket_timestamp > 3600:
+            if time.time() - ticket_timestamp > config.tokenThreshold:
                 logger.debug(f"Authentication expired for openid: {openid}")
                 return jsonify(error="Authentication expired"), 401
 
@@ -139,7 +142,7 @@ def worker():
         try:
             # 调用subprocess（假设的命令和参数）
             process = subprocess.run([
-                '/root/miniconda3/envs/sadtalker/bin/python', 'inference.py',
+                config.pythonPath, 'inference.py',
                 '--driven_audio',
                 audio_filename,
                 '--source_image',
@@ -151,7 +154,7 @@ def worker():
                 output = process.stdout.decode('utf-8')
                 match = re.search(r'./results/\d{4}_\d{2}_\d{2}_\d{2}\.\d{2}\.\d{2}\.mp4\n', output)
                 if match:
-                    result = match.group(0).strip()
+                    result = match.group(0).strip().strip("./results/")
                     c.execute('UPDATE tasks SET result=? WHERE id=?', (result, task_id))
                     conn.commit()
                     update_task_status(task_id, "success")
