@@ -7,6 +7,11 @@ import sqlite3
 import uuid
 import logging
 from queue import Queue
+from functools import wraps
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_v1_5
+from base64 import b64decode
+import time
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads/'
@@ -23,12 +28,50 @@ c.execute('''CREATE TABLE IF NOT EXISTS tasks
 conn.commit()
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(message)s')
 logger = logging.getLogger(__name__)
 
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def authenticate(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 从请求中获取openid和ticket
+        openid = request.headers.get('X-OpenID')
+        ticket = request.headers.get('X-Ticket')
+
+        logger.debug(f"Authenticating with openid: {openid}, ticket: {ticket}")
+
+        if not openid or not ticket:
+            return jsonify(error="Authentication required"), 401
+
+        try:
+            # 读取私钥
+            with open('certs/private.pem', 'r') as priv_file:
+                private_key = RSA.import_key(priv_file.read())
+
+            # 解密ticket
+            cipher = PKCS1_v1_5.new(private_key)
+            decoded_ticket = b64decode(ticket)
+            decrypted_ticket = cipher.decrypt(decoded_ticket, None).decode('utf-8')
+            logger.debug(f"Decrypted ticket: {decrypted_ticket}")
+            # 验证格式和时间戳
+            if not decrypted_ticket.startswith(openid):
+                return jsonify(error="Invalid authentication"), 401
+            ticket_timestamp = int(decrypted_ticket.lstrip(openid))
+            if time.time() - ticket_timestamp > 3600:
+                logger.debug(f"Authentication expired for openid: {openid}")
+                return jsonify(error="Authentication expired"), 401
+
+        except Exception as e:
+            return jsonify(error="Authentication failed"), 401
+
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 @app.route('/upload', methods=['POST'])
