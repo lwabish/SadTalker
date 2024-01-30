@@ -5,11 +5,16 @@ services:
     container_name: sadTalker
     volumes:
       - ./results:/app/SadTalker/results
+      - ./uploads:/app/SadTalker/uploads
+      - ./tasks.db:/app/SadTalker/tasks.db
     ports:
-      - "80:5000"
+      - "5000:5000"
+    environment:
+      PYTHON_PATH: "python3"
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
+              count: "all"
               capabilities: [gpu]
