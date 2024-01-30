@@ -58,6 +58,7 @@ def authenticate(f):
         logger.debug(f"Authenticating with openid: {openid}, ticket: {ticket}")
 
         if not openid or not ticket:
+            logger.debug("Authentication required")
             return jsonify(error="Authentication required"), 401
 
         try:
@@ -79,6 +80,7 @@ def authenticate(f):
                 return jsonify(error="Authentication expired"), 401
 
         except Exception as e:
+            logger.debug(f"Authentication failed for openid: {e}")
             return jsonify(error="Authentication failed"), 401
 
         return f(*args, **kwargs)
