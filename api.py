@@ -23,8 +23,14 @@ class Config:
     logLevel = os.environ.get("LOG_LEVEL", "DEBUG")
     uploadDir = os.environ.get("UPLOAD_DIR", 'uploads/')
     resultDir = os.environ.get("RESULT_DIR", 'results/')
-    prod = os.environ.get("FLASK_DEBUG", "")
+    prod = os.environ.get("FLASK_DEBUG", "false")
 
+
+TASK_STATUS_PENDING = "pending"
+TASK_STATUS_RUNNING = "running"
+TASK_STATUS_SUCCESS = "success"
+TASK_STATUS_MISSING = "missing_result"
+TASK_STATUS_FAILED = "failed"
 
 config = Config()
 
@@ -159,6 +165,7 @@ def worker():
     while True:
         task_id, photo_filename, audio_filename = task_queue.get()
         logger.info(f"开始处理任务: {task_id}")
+        update_task_status(task_id, TASK_STATUS_RUNNING)
         try:
             # 调用subprocess（假设的命令和参数）
             process = subprocess.run([
@@ -177,17 +184,17 @@ def worker():
                     result = match.group(0).strip().strip("./results/")
                     c.execute('UPDATE tasks SET result=? WHERE id=?', (result, task_id))
                     conn.commit()
-                    update_task_status(task_id, "success")
+                    update_task_status(task_id, TASK_STATUS_SUCCESS)
                     logger.info(f"任务成功完成: {task_id}, 结果: {result}")
                 else:
                     logger.warning(f"任务完成但未找到匹配结果: {task_id}")
-                    update_task_status(task_id, "missing_result")
+                    update_task_status(task_id, TASK_STATUS_MISSING)
             else:
                 logger.error(f"任务失败，返回码: {process.returncode}, 错误信息: {process.stderr.decode('utf-8')}")
-                update_task_status(task_id, "failed")
+                update_task_status(task_id, TASK_STATUS_FAILED)
         except Exception as e:
             logger.exception(f"处理任务时出现异常: {task_id},错误: {e}")
-            update_task_status(task_id, "failed")
+            update_task_status(task_id, TASK_STATUS_FAILED)
         finally:
             task_queue.task_done()
 
