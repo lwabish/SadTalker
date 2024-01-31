@@ -23,6 +23,7 @@ class Config:
     logLevel = os.environ.get("LOG_LEVEL", "DEBUG")
     uploadDir = os.environ.get("UPLOAD_DIR", 'uploads/')
     resultDir = os.environ.get("RESULT_DIR", 'results/')
+    prod = os.environ.get("FLASK_DEBUG", "")
 
 
 config = Config()
@@ -52,9 +53,8 @@ def allowed_file(filename):
 def authenticate(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # todo: 从请求中获取openid和ticket
-        openid = request.headers.get('X-OpenID')
-        ticket = request.headers.get('X-Ticket')
+        openid = request.form.get('openid')
+        ticket = request.form.get('ticket')
 
         logger.debug(f"Authenticating with openid: {openid}, ticket: {ticket}")
 
@@ -113,9 +113,10 @@ def upload_file():
         return jsonify(error="File type not allowed"), 400
 
 
-@root.route('/status/<task_id>', methods=['GET'])
+@root.route('/status', methods=['POST'])
 @authenticate
-def get_status(task_id):
+def get_status():
+    task_id = request.form.get("task_id")
     c.execute('SELECT result, status FROM tasks WHERE id=?', (task_id,))
     task = c.fetchone()
     if task:
@@ -124,13 +125,13 @@ def get_status(task_id):
         abort(404)
 
 
-@root.route('/download', methods=['GET'])
+@root.route('/download', methods=['POST'])
 @authenticate
 def download_result():
     """
     下载结果文件。
     """
-    filename = request.args.get('filename')
+    filename = request.form.get('filename')
     if not filename:
         return jsonify(error="Filename not provided"), 400
     try:
@@ -185,7 +186,7 @@ def worker():
                 logger.error(f"任务失败，返回码: {process.returncode}, 错误信息: {process.stderr.decode('utf-8')}")
                 update_task_status(task_id, "failed")
         except Exception as e:
-            logger.exception(f"处理任务时出现异常: {task_id}")
+            logger.exception(f"处理任务时出现异常: {task_id},错误: {e}")
             update_task_status(task_id, "failed")
         finally:
             task_queue.task_done()
@@ -200,4 +201,4 @@ if __name__ == '__main__':
     # 启动工作线程
     threading.Thread(target=worker, daemon=True).start()
 
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=bool(config.prod), host="0.0.0.0")
