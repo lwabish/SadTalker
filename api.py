@@ -21,6 +21,7 @@ def find_position_in_queue(q, task_id):
     :param task_id: 要查找的元素id
     :return: 元素在队列中的位置，如果没有找到则返回-1
     """
+    # fixme: 没加锁，因为自带的queue不方便查找只能遍历 ，量大了会严重阻塞
     # with q.mutex:  # 使用队列的锁来确保线程安全
     # 将队列转换为列表
     queue_list = list(q.queue)
