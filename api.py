@@ -14,6 +14,23 @@ from base64 import b64decode
 import time
 
 
+def find_position_in_queue(q, task_id):
+    """
+    查找队列中元素的位置
+    :param q: 队列对象
+    :param task_id: 要查找的元素id
+    :return: 元素在队列中的位置，如果没有找到则返回-1
+    """
+    # with q.mutex:  # 使用队列的锁来确保线程安全
+    # 将队列转换为列表
+    queue_list = list(q.queue)
+    # 遍历list，按照其中tuple的task id，尝试找到元素的位置
+    for task_tuple in queue_list:
+        if len(task_tuple) > 0 and task_tuple[0] == task_id:
+            return queue_list.index(task_tuple)
+    return -1
+
+
 class Config:
     _tokenValidPeriod = os.environ.get("TOKEN_VALID_MINUTE", "1")
 
@@ -126,7 +143,7 @@ def get_status():
     c.execute('SELECT result, status FROM tasks WHERE id=?', (task_id,))
     task = c.fetchone()
     if task:
-        return jsonify(id=task_id, result=task[0], status=task[1])
+        return jsonify(id=task_id, result=task[0], status=task[1], index=find_position_in_queue(task_queue, task_id))
     else:
         abort(404)
 
