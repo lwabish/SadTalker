@@ -52,7 +52,7 @@ TASK_STATUS_FAILED = "failed"
 
 config = Config()
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'm4a', 'mp4'}
 root = Blueprint('sadTalker', __name__, url_prefix="/sadTalker")
 app = Flask(__name__)
 
@@ -60,6 +60,7 @@ app = Flask(__name__)
 task_queue = Queue()
 # 创建数据库和表（如果不存在的话）
 conn = sqlite3.connect('tasks.db', check_same_thread=False)
+# fixme: 加锁
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS tasks
              (id TEXT PRIMARY KEY, result TEXT, status TEXT)''')
