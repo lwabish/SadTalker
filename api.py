@@ -50,6 +50,8 @@ TASK_STATUS_SUCCESS = "success"
 TASK_STATUS_MISSING = "missing_result"
 TASK_STATUS_FAILED = "failed"
 
+DB = 'tasks.db'
+
 config = Config()
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'm4a', 'mp4'}
@@ -59,18 +61,14 @@ app = Flask(__name__)
 # 创建一个队列
 task_queue = Queue()
 # 创建数据库和表（如果不存在的话）
-conn = sqlite3.connect('tasks.db', check_same_thread=False)
-# fixme: 加锁
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS tasks
+conn = sqlite3.connect(DB, check_same_thread=False)
+with conn:
+    conn.execute('''CREATE TABLE IF NOT EXISTS tasks
              (id TEXT PRIMARY KEY, result TEXT, status TEXT)''')
-conn.commit()
 
 # 配置日志
-logging.basicConfig(level=config.logLevel, format='%(asctime)s %(levelname)s:%(message)s')
+logging.basicConfig(level=config.logLevel, format='[%(filename)s:%(lineno)d] %(asctime)s %(levelname)s:%(message)s')
 logger = logging.getLogger(__name__)
-
-
 
 
 def allowed_file(filename):
@@ -133,8 +131,9 @@ def upload_file():
         audio.save(audio_filename)
         # 将任务添加到队列
         task_queue.put((task_id, photo_filename, audio_filename))
-        c.execute('INSERT INTO tasks (id, result, status) VALUES (?,?,?)', (task_id, None, "pending"))
-        conn.commit()
+        with conn as c:
+            c.execute('INSERT INTO tasks (id, result, status) VALUES (?,?,?)', (task_id, None, TASK_STATUS_PENDING))
+        logger.info(f"任务 {task_id} 的状态更新为 {TASK_STATUS_PENDING}")
         return jsonify(task_id=task_id), 202
     else:
         return jsonify(error="File type not allowed"), 400
@@ -144,8 +143,10 @@ def upload_file():
 @authenticate
 def get_status():
     task_id = request.form.get("task_id")
-    c.execute('SELECT result, status FROM tasks WHERE id=?', (task_id,))
-    task = c.fetchone()
+    with conn:
+        c = conn.cursor()
+        c.execute('SELECT result, status FROM tasks WHERE id=?', (task_id,))
+        task = c.fetchone()
     if task:
         return jsonify(id=task_id, result=task[0], status=task[1], index=find_position_in_queue(task_queue, task_id))
     else:
@@ -175,8 +176,9 @@ def update_task_status(task_id, status):
     :param status: 新的状态值
     """
     try:
-        c.execute('UPDATE tasks SET status=? WHERE id=?', (status, task_id))
-        conn.commit()
+        status_conn = sqlite3.connect(DB, check_same_thread=False)
+        with status_conn:
+            status_conn.execute('UPDATE tasks SET status=? WHERE id=?', (status, task_id))
         logger.info(f"任务 {task_id} 的状态更新为 {status}")
     except sqlite3.Error as e:
         logger.error(f"更新任务 {task_id} 状态时数据库错误: {e}")
@@ -203,8 +205,8 @@ def worker():
                 match = re.search(r'./results/\d{4}_\d{2}_\d{2}_\d{2}\.\d{2}\.\d{2}\.mp4\n', output)
                 if match:
                     result = match.group(0).strip().strip("./results/")
-                    c.execute('UPDATE tasks SET result=? WHERE id=?', (result, task_id))
-                    conn.commit()
+                    with conn as c:
+                        c.execute('UPDATE tasks SET result=? WHERE id=?', (result, task_id))
                     update_task_status(task_id, TASK_STATUS_SUCCESS)
                     logger.info(f"任务成功完成: {task_id}, 结果: {result}")
                 else:
