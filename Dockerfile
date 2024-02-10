@@ -27,4 +27,4 @@ COPY . .
 
 EXPOSE 5000
 
-ENTRYPOINT ["python", "api.py"]
+ENTRYPOINT ["python3", "inference.py"]
