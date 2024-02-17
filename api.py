@@ -46,6 +46,7 @@ class Config:
     resultDir = os.environ.get("RESULT_DIR", 'results/')
     apiPort = os.environ.get("API_PORT", "5000")
     prod = os.environ.get("FLASK_DEBUG", "false")
+    stArg = os.environ.get("ST_ARG", "")
 
 
 TASK_STATUS_PENDING = "pending"
@@ -77,6 +78,10 @@ logger = logging.getLogger(__name__)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def process_st_args(arg_string):
+    return arg_string.split(" ")
 
 
 def authenticate(f):
@@ -194,16 +199,20 @@ def worker():
         logger.info(f"开始处理任务: {task_id}")
         update_task_status(task_id, TASK_STATUS_RUNNING)
         try:
-            # 调用subprocess（假设的命令和参数）
-            process = subprocess.run([
+            base_args = [
                 config.pythonPath, 'inference.py',
                 '--driven_audio',
                 audio_filename,
                 '--source_image',
-                photo_filename,
-                '--enhancer',
-                "gfpgan",
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                photo_filename
+            ]
+            final_args = base_args+process_st_args(config.stArg)
+            logger.debug(f"sadTalker full command: {final_args}")
+            process = subprocess.run(
+                final_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
             if process.returncode == 0:
                 output = process.stdout.decode('utf-8')
                 match = re.search(r'./results/\d{4}_\d{2}_\d{2}_\d{2}\.\d{2}\.\d{2}\.mp4\n', output)
