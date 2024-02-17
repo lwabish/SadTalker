@@ -41,6 +41,7 @@ class Config:
     logLevel = os.environ.get("LOG_LEVEL", "DEBUG")
     uploadDir = os.environ.get("UPLOAD_DIR", 'uploads/')
     resultDir = os.environ.get("RESULT_DIR", 'results/')
+    apiPort = os.environ.get("API_PORT", "5000")
     prod = os.environ.get("FLASK_DEBUG", "false")
 
 
@@ -231,4 +232,4 @@ if __name__ == '__main__':
     # 启动工作线程
     threading.Thread(target=worker, daemon=True).start()
 
-    app.run(debug=bool(config.prod), host="0.0.0.0")
+    app.run(debug=bool(config.prod), host="0.0.0.0", port=int(config.apiPort))
