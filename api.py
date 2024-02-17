@@ -59,7 +59,7 @@ DB = 'tasks.db'
 
 config = Config()
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'm4a', 'mp4', 'heic'}
+ALLOWED_EXTENSIONS = {'mov', 'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'm4a', 'mp4', 'heic'}
 root = Blueprint('sadTalker', __name__, url_prefix="/sadTalker")
 app = Flask(__name__)
 
@@ -206,7 +206,7 @@ def worker():
                 '--source_image',
                 photo_filename
             ]
-            final_args = base_args+process_st_args(config.stArg)
+            final_args = base_args + process_st_args(config.stArg)
             logger.debug(f"sadTalker full command: {final_args}")
             process = subprocess.run(
                 final_args,
