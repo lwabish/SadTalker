@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, abort, Blueprint, send_from_directory
+from dotenv import load_dotenv
 import os
 import subprocess
 import threading
@@ -13,6 +14,7 @@ from Crypto.Cipher import PKCS1_v1_5
 from base64 import b64decode
 import time
 
+load_dotenv()
 
 def find_position_in_queue(q, task_id):
     """
