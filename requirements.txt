@@ -21,3 +21,4 @@ av
 safetensors
 flask
 PyCryptodome
+python-dotenv
