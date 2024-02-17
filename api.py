@@ -16,6 +16,7 @@ import time
 
 load_dotenv()
 
+
 def find_position_in_queue(q, task_id):
     """
     查找队列中元素的位置
@@ -57,7 +58,7 @@ DB = 'tasks.db'
 
 config = Config()
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'm4a', 'mp4'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'm4a', 'mp4', 'heic'}
 root = Blueprint('sadTalker', __name__, url_prefix="/sadTalker")
 app = Flask(__name__)
 
